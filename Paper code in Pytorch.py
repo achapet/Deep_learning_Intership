@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[12]:
+# In[40]:
 
 
 #Import needed libraries
@@ -23,24 +23,19 @@ import torch.nn.functional as F
 from pandas.plotting import radviz
 from pandas.plotting import parallel_coordinates
 
+import pytoune
+from pytoune.framework import Model
+from pytoune.framework import callbacks
+
 
 # # Import data
 
-# In[4]:
+# In[11]:
 
 
 # Buid the feature matrix
 data = pd.read_csv('/Users/almachapet--batlle/Documents/Internship U1001/2017---Deep-learning-yeast-UTRs-master/Data/Random_UTRs.csv')
-print data
-
-
-# In[5]:
-
-
-# Plot the data => useful to understand the 
-radviz(data, 'Name') #radviz plot
-
-parallel_coordinates(data, 'Name') #parallel plot 
+print(data)
 
 
 # ## One-hot encoding of the sequences.
@@ -83,7 +78,7 @@ def one_hot_encoding(df, seq_column, expression):
     
         # keep track of where we are
         if (i%10000)==0:
-            print i,
+            print(i),
         
     X = X.astype(theano.config.floatX)
     Y = np.asarray(df[expression].values,
@@ -98,15 +93,16 @@ def one_hot_encoding(df, seq_column, expression):
 X, Y, total_width = one_hot_encoding(data, 'UTR', 'growth_rate')
 
 
-# In[19]:
+# In[78]:
 
 
-print X
+print(X)
+print(Y)
 
 
 # ## Generate different data sets
 
-# In[20]:
+# In[17]:
 
 
 # a sorted numpy array of UTR indexes, from least reads to most reads
@@ -132,7 +128,7 @@ random.shuffle(train_inds, lambda :seed)
 # 
 # Try different structures
 
-# In[21]:
+# In[33]:
 
 
 class Net(nn.Module):
@@ -162,38 +158,38 @@ class Net(nn.Module):
         for s in size:
             num_features *= s
         return num_features
-    
+
 net = Net()
 print(net)
 
 
+# In[70]:
+
+
+params = list(net.parameters())
+print(len(params))
+print(params[0].size()) 
+
+
 # ## Training
 
-# In[22]:
-
-
-from torchsample.modules import ModuleTrainer
-
-
-# In[ ]:
+# In[77]:
 
 
 # Choice of optimizer & loss function => MSE 
 # Using backpropagation
 
 # define model
-model = Net (10,2)
+model = Net()
 
 # define loss function
 loss_func = nn.MSELoss() 
 
 # define optimizer
-optimizer = optim.Adam(net.parameters(), lr = 0.0001)
+optimizer = torch.optim.Adam(net.parameters(), lr = 0.0001)
 
 #Verification
-
 for epoch in range(2):  # loop over the dataset multiple time
-    for i, data in enumerate(trainloader, 0):
         inputs, labels = data
 
         # zero the parameter gradients
@@ -206,4 +202,77 @@ for epoch in range(2):  # loop over the dataset multiple time
         optimizer.step()
 
 print('Finished Training')
+
+
+# ## Training with PyToune
+
+# In[93]:
+
+
+num_features = 20
+num_epochs = 10
+num_train_samples = 800
+batch_size = 20
+
+loss_function = torch.nn.MSELoss()
+pytorch_module = torch.nn.Linear(num_features,1)
+optimizer = torch.optim.Adam(pytorch_module.parameters(), lr=1e-3)
+    
+Model = Net()
+    
+# track model overfitting
+earlyStopping = pytoune.framework.EarlyStopping(monitor = 'val_loss',
+                                                  patience = 1,
+                                                  verbose = 0,
+                                                  mode = 'min')
+    
+# fit the model
+# note that I'm not passing the data to this function, I've just included it here (i.e. I've
+# included X and Y)
+Model.train(X[train_inds],
+              #Y[train_inds],
+              #callbacks = [earlyStopping],
+              #verbose = 0,
+              #nb_epoch = 100,
+           )
+    
+#print ('MSE:',earlyStopping.best)
+return {'loss': earlyStopping.best, 'status': STATUS_OK}
+
+
+# ## Plot predictions vs data
+
+# In[ ]:
+
+
+Y_pred = model.predict(X, verbose=1)
+
+
+# In[ ]:
+
+
+# data
+x = Y_pred[test_inds].flatten()
+y = Y[test_inds].flatten()
+
+# calculate R^2
+r2 = scipy.stats.pearsonr(x, y)[0]**2
+
+
+g = sns.jointplot(x,
+                  y,
+                  stat_func = None,
+                  kind = 'scatter',
+                  s = 5,
+                  alpha = 0.1,
+                  size = 5)
+
+g.ax_joint.set_xlabel('Predicted log$_2$ Growth Rate')
+g.ax_joint.set_ylabel('Measured log$_2$ Growth Rate')
+
+
+text = "R$^2$ = {:0.2}".format(r2)
+plt.annotate(text, xy=(-5.5, 0.95), xycoords='axes fraction')
+
+plt.title("CNN predictions vs. test set", x = -3, y = 1.25)
 
