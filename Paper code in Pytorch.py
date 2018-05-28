@@ -1,9 +1,6 @@
 
 # coding: utf-8
 
-# In[40]:
-
-
 #Import needed libraries
 import pandas as pd
 import numpy as np
@@ -30,9 +27,6 @@ from pytoune.framework import callbacks
 
 # # Import data
 
-# In[11]:
-
-
 # Buid the feature matrix
 data = pd.read_csv('/Users/almachapet--batlle/Documents/Internship U1001/2017---Deep-learning-yeast-UTRs-master/Data/Random_UTRs.csv')
 print(data)
@@ -41,8 +35,6 @@ print(data)
 # ## One-hot encoding of the sequences.
 # 
 # i.e. we're converting the sequences from being represented as a 50 character string of bases to a 4x50 matrix of 1's and 0's, with each row corresponding to a base and every column a position in the UTR.
-
-# In[13]:
 
 
 # From the work of Cuperus et al.
@@ -87,23 +79,13 @@ def one_hot_encoding(df, seq_column, expression):
     return X, Y, total_width
 
 
-# In[14]:
-
-
 X, Y, total_width = one_hot_encoding(data, 'UTR', 'growth_rate')
-
-
-# In[78]:
-
 
 print(X)
 print(Y)
 
 
 # ## Generate different data sets
-
-# In[17]:
-
 
 # a sorted numpy array of UTR indexes, from least reads to most reads
 sorted_inds = data.sort_values('t0').index.values
@@ -127,9 +109,6 @@ random.shuffle(train_inds, lambda :seed)
 # ## Buid the neural network
 # 
 # Try different structures
-
-# In[33]:
-
 
 class Net(nn.Module):
     def __init__(self):
